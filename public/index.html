@@ -4,14 +4,196 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LazyNoteTaker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+        }
+        .hidden {
+            display: none;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #3367d6;
+        }
+        select {
+            padding: 8px;
+            margin-right: 10px;
+        }
+        #docContent {
+            white-space: pre-wrap;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+    </style>
 </head>
 <body>
     <h1>Welcome to LazyNoteTaker</h1>
-    <p>Use the features below to take notes efficiently:</p>
-    <ul>
-        <li>Voice-to-Text Conversion</li>
-        <li>Automatic Summarization</li>
-        <li>Organization of Notes</li>
-    </ul>
+    
+    <div class="container">
+        <div id="loginSection" class="section">
+            <h2>Google Account Access</h2>
+            <p>Connect to your Google account to access your documents:</p>
+            <button id="googleLoginBtn">Sign in with Google</button>
+        </div>
+        
+        <div id="docsSection" class="section hidden">
+            <h2>Your Google Documents</h2>
+            <div>
+                <select id="docSelector">
+                    <option value="">Select a document</option>
+                </select>
+                <button id="fetchDocBtn">Fetch Document</button>
+            </div>
+            
+            <div id="docContainer" class="hidden">
+                <h3 id="docTitle"></h3>
+                <div id="docContent"></div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>Other Features</h2>
+            <p>Use the features below to manage your notes efficiently:</p>
+            <ul>
+                <li>Voice-to-Text Conversion</li>
+                <li>Automatic Summarization</li>
+                <li>Organization of Notes</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const loginSection = document.getElementById('loginSection');
+        const docsSection = document.getElementById('docsSection');
+        const googleLoginBtn = document.getElementById('googleLoginBtn');
+        const docSelector = document.getElementById('docSelector');
+        const fetchDocBtn = document.getElementById('fetchDocBtn');
+        const docContainer = document.getElementById('docContainer');
+        const docTitle = document.getElementById('docTitle');
+        const docContent = document.getElementById('docContent');
+        
+        // Get token from URL if present
+        function getTokenFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get('token');
+        }
+        
+        // Store token in memory
+        let authToken = getTokenFromUrl();
+        
+        // Check if user is logged in
+        async function checkLoginStatus() {
+            if (!authToken) {
+                loginSection.classList.remove('hidden');
+                docsSection.classList.add('hidden');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/docs?token=${authToken}`);
+                if (response.ok) {
+                    // User is logged in, load documents
+                    loginSection.classList.add('hidden');
+                    docsSection.classList.remove('hidden');
+                    loadDocuments();
+                    
+                    // Update URL to remove token parameter for cleaner sharing
+                    const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                    window.history.pushState({path: newUrl}, '', newUrl);
+                } else {
+                    // User is not logged in
+                    loginSection.classList.remove('hidden');
+                    docsSection.classList.add('hidden');
+                    authToken = null;
+                }
+            } catch (error) {
+                console.error('Error checking login status:', error);
+                loginSection.classList.remove('hidden');
+                docsSection.classList.add('hidden');
+            }
+        }
+        
+        // Load user's Google Docs
+        async function loadDocuments() {
+            try {
+                const response = await fetch(`/api/docs?token=${authToken}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    docSelector.innerHTML = '<option value="">Select a document</option>';
+                    
+                    data.docs.forEach(doc => {
+                        const option = document.createElement('option');
+                        option.value = doc.id;
+                        option.textContent = doc.name;
+                        docSelector.appendChild(option);
+                    });
+                } else {
+                    throw new Error('Failed to fetch documents');
+                }
+            } catch (error) {
+                console.error('Error loading documents:', error);
+                alert('Failed to load documents. Please try logging in again.');
+            }
+        }
+        
+        // Fetch selected document content
+        async function fetchDocument(docId) {
+            try {
+                const response = await fetch(`/api/docs/${docId}?token=${authToken}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    docTitle.textContent = data.title;
+                    docContent.textContent = data.content;
+                    docContainer.classList.remove('hidden');
+                } else {
+                    throw new Error('Failed to fetch document content');
+                }
+            } catch (error) {
+                console.error('Error fetching document:', error);
+                alert('Failed to fetch document content.');
+            }
+        }
+        
+        // Event Listeners
+        googleLoginBtn.addEventListener('click', () => {
+            window.location.href = '/auth/google';
+        });
+        
+        fetchDocBtn.addEventListener('click', () => {
+            const selectedDocId = docSelector.value;
+            if (selectedDocId) {
+                fetchDocument(selectedDocId);
+            } else {
+                alert('Please select a document first.');
+            }
+        });
+        
+        // Check login status when page loads
+        document.addEventListener('DOMContentLoaded', checkLoginStatus);
+    </script>
 </body>
 </html>
