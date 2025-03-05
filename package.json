@@ -2,10 +2,13 @@
   "name": "lazynotetaker",
   "version": "1.0.0",
   "description": "I am too lazy to take notes during lecture",
-  "main": "main.js",
+  "main": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "New Folder (6)",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "fastify": "^5.2.1"
+  }
 }
